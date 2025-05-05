@@ -1,0 +1,7 @@
+.env
+data/*
+.venv
+.venv1
+.idea
+.pytest_cache
+__pycache__
