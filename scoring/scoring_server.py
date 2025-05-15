@@ -16,8 +16,8 @@ score_count = 0
 class EvaluateRequest(BaseModel):
     completions: list[str]
     project_path: list[str]
-    relative_package_path: list[str]
-    relative_file_path: list[str]
+    relative_go_package: list[str]
+    func_name: list[str]
 
 
 @app.get("/")
@@ -34,8 +34,8 @@ async def score(evaluate_request: EvaluateRequest):
     scores = await batch_get_rewards_async(
         evaluate_request.completions,
         evaluate_request.project_path,
-        evaluate_request.relative_package_path,
-        evaluate_request.relative_file_path,
+        evaluate_request.relative_go_package,
+        evaluate_request.func_name,
     )
 
     global sum_rt, request_count, sum_score, score_count

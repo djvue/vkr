@@ -10,13 +10,13 @@ def setup_env():
     gvm_root = os.environ['GVM_ROOT']
     os.environ['PATH'] = f"{gvm_root}/bin:{gvm_root}/pkgsets/go1.24.2/global/bin:{gvm_root}/gos/go1.24.2/bin:{gvm_root}/pkgsets/go1.24.2/global/overlay/bin:{os.environ['PATH']}"
 
-async def batch_get_rewards_async(completions, project_path: list[str], relative_package_path: list[str], relative_file_path: list[str]) -> list[float]:
-    # print(prompts, completions, project_path, relative_package_path, relative_file_path, sep="\n")
+async def batch_get_rewards_async(completions, project_path: list[str], relative_go_package: list[str], func_name: list[str]) -> list[float]:
+    # print(prompts, completions, project_path, relative_go_package, relative_file_path, sep="\n")
 
     scores = [0.0]*len(completions)
 
     for i in range(len(completions)):
-        scorer = Scorer(project_path[i], relative_package_path[i], relative_file_path[i])
+        scorer = Scorer(project_path[i], relative_go_package[i], func_name[i])
 
         scores[i] = await scorer.reward(completions[i])
 
@@ -24,10 +24,10 @@ async def batch_get_rewards_async(completions, project_path: list[str], relative
 
         
 
-def batch_get_rewards(completions, project_path, relative_package_path, relative_file_path) -> list[float]:
+def batch_get_rewards(completions, project_path, relative_go_package, func_name) -> list[float]:
     scores = [0.0]*len(completions)
     async def run():
-        scores = await batch_get_rewards_async(completions, project_path, relative_package_path, relative_file_path)
+        scores = await batch_get_rewards_async(completions, project_path, relative_go_package, func_name)
 
     asyncio.run(run())
 
@@ -38,21 +38,23 @@ class Scorer:
     paths: dict
     project_path: str
     test_file_path: str
-    relative_package_path: str
+    relative_go_package: str
+    func_name: str
     
-    def __init__(self, project_path: str, relative_package_path: str, relative_file_path: str):
-        self.paths = {'project_path': project_path, 'relative_package_path': relative_package_path, 'relative_file_path': relative_file_path}
+    def __init__(self, project_path: str, relative_go_package: str, func_name: str):
+        self.paths = {'project_path': project_path, 'relative_go_package': relative_go_package, 'func_name': func_name}
         self.project_path = os.getcwd() + '/data/repos/' + project_path
-        self.test_file_path = self.project_path + relative_file_path[:-3] + '_llm_test.go'
-        self.cover_file_path = self.project_path + relative_file_path[:-3] + '_llm_test_cover.out'
-        self.relative_package_path = relative_package_path
+        self.test_file_path = self.project_path + relative_go_package + '/' + func_name + '_llm_test.go'
+        self.cover_file_path = self.project_path + relative_go_package + '/' +func_name + '_llm_test_cover.out'
+        self.relative_go_package = relative_go_package
+        self.func_name = func_name
 
     async def __clean_project_test_files(self):
         project_path = aiopath.AsyncPath(self.project_path)
         async for p in project_path.glob('**/*_test.go'):
             await p.unlink()
 
-    def __test_file_content_from_completion(self, completion: str) -> str:
+    def test_file_content_from_completion(self, completion: str) -> str:
         go_content_start = completion.find('```go')+5
         if go_content_start == 4:
             raise Exception('completion parse: no starting ```go found')
@@ -108,7 +110,7 @@ class Scorer:
             raise Exception(f"go mod tidy: code {code}, 'strderr' {stderr}")
 
     async def __run_tests(self, test_funcs: list[str]) -> tuple:
-        code, stdout, stderr = await self.exec(f"go test ./{self.relative_package_path} -run {'/'.join(test_funcs)} -json -coverprofile {self.cover_file_path}", timeout=60)
+        code, stdout, stderr = await self.exec(f"go test ./{self.relative_go_package} -run {'/'.join(test_funcs)} -json -coverprofile {self.cover_file_path}", timeout=60)
         
         if code == -1:
             raise Exception('run tests: timeout')
@@ -159,7 +161,7 @@ class Scorer:
         coverout = await path.read_text()
         #print(path, coverout)
 
-        lines = [line+'\n' for line in coverout.split('\n') if self.relative_package_path in line or line.startswith('mode:')]
+        lines = [line+'\n' for line in coverout.split('\n') if self.relative_go_package in line or line.startswith('mode:')]
 
         async with path.open(mode='w') as file:
             await file.writelines(lines)
@@ -176,12 +178,12 @@ class Scorer:
         foundCoverage = False
         #print(stdout)
         for line in stdout.split('\n'):
-            if line.startswith('total:'):
-                out = re.search(r"\(statements\)\W+(\d+\.?\d*)\%", line)
+            out = re.search(r"\W+"+self.func_name+r"\W+(\d+\.?\d*)\%", line)
+            if out is not None:
                 coverage = float(out.group(1))
                 foundCoverage = True
         if not foundCoverage:
-            raise Exception(f"no total coverage, stdout:{stdout}, stderr: {stderr}")
+            raise Exception(f"no func coverage, stdout:{stdout}, stderr: {stderr}")
 
         return coverage
         
@@ -240,7 +242,7 @@ class Scorer:
         try:
             await self.__clean_project_test_files()
 
-            test_file_content = self.__test_file_content_from_completion(completion)
+            test_file_content = self.test_file_content_from_completion(completion)
 
             test_funcs = self.__test_funcs(test_file_content)
 

@@ -40,7 +40,7 @@ def setup_trainer(source_model: str, train_ds):
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map='auto',
+        device_map="auto",
         #torch_dtype=torch.float16,
         torch_dtype=torch.bfloat16,
         #use_cache=False,
@@ -74,10 +74,10 @@ def setup_trainer(source_model: str, train_ds):
     training_args = GRPOConfig(
         #use_vllm=True,
         #vllm_device="cuda:0",
-        #vllm_gpu_memory_utilization=0.9,
+        #vllm_gpu_memory_utilization=0.35,
         #vllm_max_model_len=max_prompt_length + max_completion_length,
 
-        output_dir='./data/trainer_output11',
+        output_dir='./data/trainer_output',
         max_prompt_length=max_prompt_length,
         max_completion_length=max_completion_length,
         num_generations=2,
@@ -92,13 +92,11 @@ def setup_trainer(source_model: str, train_ds):
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
 
-        save_strategy='steps',
-        save_steps=50,
-
         #optim="adamw_8bit",
         optim="adamw_torch_fused",
 
         logging_steps=1,
+        save_steps=500,
         max_grad_norm=0.1,
         report_to="tensorboard",
         logging_dir="logs/runs",

@@ -51,6 +51,14 @@ pip install --upgrade pip
 pip install 'torch>=2.7.0' torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 pip install datasets transformers tensorflow[and-cuda] trl tf-keras 'accelerate>=0.26.0' peft bitsandbytes
 
+# instead for vllm
+sudo apt-get -y install cuda-toolkit-12-4
+
+pip install -U torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
+# --index-url https://download.pytorch.org/whl/cu126
+
+## continue
+
 pip freeze | grep torch
 
 python -c 'import tensorflow as tf; tf.config.list_physical_devices('GPU')'
@@ -71,3 +79,6 @@ python train.py
 hTzsqb8w
 
 fastapi run evaluator_server.py
+
+
+trl vllm-serve --model deepseek-ai/deepseek-coder-1.3b-instruct
