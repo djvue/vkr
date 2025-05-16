@@ -4,5 +4,5 @@
         "data/repos/**/*": true,
         "cells_backup/**/*": true,
     },
-    "python.analysis.exclude": ["**/node_modules", "**/__pycache__", ".git", "**/build", "env/**", "data/repos", "data/repo_archives"]
+    "python.analysis.exclude": ["**/node_modules", "**/__pycache__", "**/.pytest_cache", ".git", "**/build", "env/**", "data/repos", "data/repo_archives", "logs"]
   }

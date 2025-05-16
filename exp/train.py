@@ -10,26 +10,30 @@ import scoring.scoring_client
 import sys
 
 
+def reward_func(prompts, completions, **kwargs):
+    completions = [chat[0]['content'] for chat in completions]
+    #scores = batch_get_rewards(completions, kwargs['project_path'], kwargs['relative_go_package'], kwargs['func_name'])
+    scores = scoring.scoring_client.batch_get_rewards(completions, kwargs['project_path'], kwargs['relative_go_package'], kwargs['func_name'])
+
+    return scores
+
+
 def setup_trainer(source_model: str, target_model: str, train_ds):
     #setup_env()
     gc.collect()
     torch.cuda.empty_cache()
     os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:128'
 
-    def reward_func(prompts, completions, **kwargs):
-        completions = [chat[0]['content'] for chat in completions]
-        #scores = batch_get_rewards(completions, kwargs['project_path'], kwargs['relative_go_package'], kwargs['func_name'])
-        scores = scoring.scoring_client.batch_get_rewards(completions, kwargs['project_path'], kwargs['relative_go_package'], kwargs['func_name'])
-
-        return scores
-
-    bnb_config = transformers.BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_quant_storage=torch.bfloat16,
-    )
+    model_additinal_args = {}
+    if source_model == 'original':
+        bnb_config = transformers.BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_quant_storage=torch.bfloat16,
+        )
+        model_additinal_args['quantization_config'] = bnb_config
 
     #model_name = 'deepseek-ai/deepseek-coder-1.3b-instruct'
     #model_name = 'TheBloke/deepseek-coder-1.3b-instruct-AWQ'
@@ -40,26 +44,13 @@ def setup_trainer(source_model: str, target_model: str, train_ds):
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map='auto',
+        device_map="auto",
         #torch_dtype=torch.float16,
         torch_dtype=torch.bfloat16,
         #use_cache=False,
         #low_cpu_mem_usage=True,
         #local_files_only=True,
-        quantization_config=bnb_config,
-    )
-
-    peft_config = LoraConfig(
-        lora_alpha=16,
-        lora_dropout=0.05,
-        r=16,
-        bias="none",
-        target_modules="all-linear",
-        task_type="CAUSAL_LM",
-        modules_to_save=[
-            "lm_head",
-            "embed_tokens",
-        ],
+        **model_additinal_args,
     )
 
     # lora_config = LoraConfig(
@@ -74,7 +65,7 @@ def setup_trainer(source_model: str, target_model: str, train_ds):
     training_args = GRPOConfig(
         #use_vllm=True,
         #vllm_device="cuda:0",
-        #vllm_gpu_memory_utilization=0.9,
+        #vllm_gpu_memory_utilization=0.35,
         #vllm_max_model_len=max_prompt_length + max_completion_length,
 
         output_dir='./data/checkpoints_'+target_model,
@@ -92,32 +83,45 @@ def setup_trainer(source_model: str, target_model: str, train_ds):
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
 
-        save_strategy='steps',
-        save_steps=50,
-
         #optim="adamw_8bit",
         optim="adamw_torch_fused",
 
         logging_steps=1,
+        save_steps=500,
         max_grad_norm=0.1,
         report_to="tensorboard",
         logging_dir="logs/runs",
-
-        label_names=["labels"],
     )
+
+    trainer_args = {}
+    if source_model == 'original':
+        peft_config = LoraConfig(
+            lora_alpha=16,
+            lora_dropout=0.05,
+            r=16,
+            bias="none",
+            target_modules="all-linear",
+            task_type="CAUSAL_LM",
+            modules_to_save=[
+                "lm_head",
+                "embed_tokens",
+            ],
+        )
+
+        trainer_args['peft_config'] = peft_config
 
     trainer = GRPOTrainer(
         model=model,
         reward_funcs=reward_func,
         train_dataset=train_ds,
         args=training_args,
-        peft_config=peft_config,
+        **trainer_args,
     )
 
     return trainer
 
 
-def train(source_model: str, target_model: str, take: int, skip: int, resume: bool):
+def train(source_model: str, target_model: str, take: int, skip: int):
     ds = datasets.load_from_disk('./data/splitted_ds')
     train_ds = ds['train']
     train_ds = train_ds.skip(skip).take(take)
@@ -129,10 +133,7 @@ def train(source_model: str, target_model: str, take: int, skip: int, resume: bo
 
     trainer = setup_trainer(source_model, target_model, train_ds)
 
-    if resume:
-        trainer.train(resume_from_checkpoint = True)
-    else:
-        trainer.train()
+    trainer.train()
 
     trainer.save_model("data/"+target_model)
 
@@ -141,12 +142,11 @@ def run():
     if len(sys.argv) < 5:
         print("""
 usage:
-python train.py {source_model} {target_model} {take} {skip} [--resume]
+python train.py {source_model} {target_model} {take} {skip}
 source_model - original for original deepseek model, or ./data/{model_name} local model path
 target_model - ./data/{model_name} local path to save trained model
 take - train dataset size
 skip - how much to skip at the beginning of the dataset
---resume - resume training from checkpoint
 """)
         return
 
@@ -154,12 +154,8 @@ skip - how much to skip at the beginning of the dataset
     target_model = sys.argv[2]
     take = int(sys.argv[3])
     skip = int(sys.argv[4])
-    resume = False
-    if len(sys.argv) >= 6:
-        if sys.argv[5] == '--resume':
-            resume = True
 
-    train(source_model, target_model, take, skip, resume)
+    train(source_model, target_model, take, skip)
     
 
 if __name__ == '__main__':

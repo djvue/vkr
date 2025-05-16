@@ -26,6 +26,16 @@
 - файлы с build тегами, так как для запуска требуется использовать определенные параметры, и может потребоваться определенная архитектура процессора
 - пакеты в репозитории с синтаксическими ошибками, невалидным кодом на go
 
+Файлы с кодом анализируются, для каждой функции создается своя запись в датасете
+
+Промпт создается по такому принципу:
+- system_message с контекстом по задаче
+- user сообщение со сгенерированным кодом:
+  - код тестируемой функция
+  - все зависимости функции: импорты, глобальные переменные, другие функции, константы; все зависимости зависимостей и т.д.
+  - зависимости в промпт добавляются до тех пор, пока промпт не превысит ограничение на длину, остальные зависимости игнорируются
+- в user сообщении также указана функция, которую нужно протестировать
+
 ### Scoring server
 
 Логика скорера:
@@ -54,26 +64,49 @@
 fastapi run scoring/scoring_server.py
 ```
 
-
 ### Training
 
 Базовая модель `deepseek-ai/deepseek-coder-1.3b-instruct` обучена методом Group Relative Policy Optimization ([GRPO](https://huggingface.co/docs/trl/main/grpo_trainer))
 
 Для запуска обучения модели можно использовать команду:
 ```bash
-python train.py
+python train.py original model_12 3000 0 --resume
 ```
 
-Параметры можно смотреть в [исходниках train.py](./train.py)
+Описание аргументов
+```bash
+usage:
+python train.py {source_model} {target_model} {take} {skip} [--resume]
+source_model - original for original deepseek model, or ./data/{model_name} local model path
+target_model - ./data/{model_name} local path to save trained model
+take - train dataset size
+skip - how much to skip at the beginning of the dataset
+--resume - resume training from checkpoint
+```
+
+Параметры обучения можно смотреть в [исходниках train.py](./train.py)
 
 ### Evaluating
 
 Для запуска проверки модели:
 ```bash
-python eval.py
+python eval.py generate model_12 500
+```
+В другой консоли
+```bash
+python eval.py score model_12 500
 ```
 
-Результаты пишутся в логи `logs/eval*.log`
+Описание аргументов
+```bash
+usage:
+python eval.py {command} {model_name} {take}
+command - score|generate - action, expected to run to processes score & generate in parallel
+model_name - original for original deepseek model, or ./data/{model_name} local model path
+take - eval size
+```
+
+Результаты пишутся в логи `logs/{model_name}/{generate,generate_fixed,score,score_fixed}.log`
 
 Далее можно прогнать ячейки jupiter notebook `eval_analyzer.ipynb`
 
@@ -83,9 +116,14 @@ python eval.py
 
 ## Результаты
 
-На момент написания
+Полученные метрики
 
-Полученные метрики:
-baseline reward -  `0.0815`
-trained reward - `0.0944`
-trained/baseline reward - `1.16` (+16% улучшение качества модели)
+| type                  |   original reward |   trained reward |   trained/original |   uplift, % |
+|:----------------------|------------------:|-----------------:|-------------------:|------------:|
+| no fixing iteration   |            0.1731 |           0.2023 |              1.169 |        16.9 |
+| with fixing iteration |            0.1757 |           0.2085 |              1.187 |        18.7 |
+
+В качестве скора для оценки модели выбрана средняя награда оценщика из раздела "Scoring"
+
+- no fixing iteration - результаты оценки сгенерированного тест-файла модели
+- with fixing-iteration - результаты оценки после 1 итерации исправления ошибок, полученных оценщиком при попытке запустить (только для кейсов с ошибками)
