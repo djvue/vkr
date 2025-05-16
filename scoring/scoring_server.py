@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from scoring.scoring import setup_env, batch_get_rewards_async
 import time
+from datetime import datetime
 
 
 setup_env()
@@ -43,6 +44,6 @@ async def score(evaluate_request: EvaluateRequest):
     request_count += 1
     sum_score += sum(scores)
     score_count += len(scores)
-    print(f"ready request, len={len(evaluate_request.completions)}, scores={scores}, rt={time.time()-start}, avg_score={sum_score/score_count}, avg_rt={sum_rt/request_count}")
+    print(f"ready request, datetime={datetime.today().strftime('%Y-%m-%d %H:%M:%S')}, len={len(evaluate_request.completions)}, scores={scores}, rt={time.time()-start}, avg_score={sum_score/score_count}, avg_rt={sum_rt/request_count}")
 
     return {"scores": scores}

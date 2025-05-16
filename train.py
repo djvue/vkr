@@ -10,7 +10,7 @@ import scoring.scoring_client
 import sys
 
 
-def setup_trainer(source_model: str, train_ds):
+def setup_trainer(source_model: str, target_model: str, train_ds):
     #setup_env()
     gc.collect()
     torch.cuda.empty_cache()
@@ -77,7 +77,7 @@ def setup_trainer(source_model: str, train_ds):
         #vllm_gpu_memory_utilization=0.9,
         #vllm_max_model_len=max_prompt_length + max_completion_length,
 
-        output_dir='./data/trainer_output11',
+        output_dir='./data/checkpoints_'+target_model,
         max_prompt_length=max_prompt_length,
         max_completion_length=max_completion_length,
         num_generations=2,
@@ -102,6 +102,8 @@ def setup_trainer(source_model: str, train_ds):
         max_grad_norm=0.1,
         report_to="tensorboard",
         logging_dir="logs/runs",
+
+        label_names=["labels"],
     )
 
     trainer = GRPOTrainer(
@@ -115,7 +117,7 @@ def setup_trainer(source_model: str, train_ds):
     return trainer
 
 
-def train(source_model: str, target_model: str, take: int, skip: int):
+def train(source_model: str, target_model: str, take: int, skip: int, resume: bool):
     ds = datasets.load_from_disk('./data/splitted_ds')
     train_ds = ds['train']
     train_ds = train_ds.skip(skip).take(take)
@@ -125,9 +127,12 @@ def train(source_model: str, target_model: str, take: int, skip: int):
 
     print(train_ds)
 
-    trainer = setup_trainer(source_model, train_ds)
+    trainer = setup_trainer(source_model, target_model, train_ds)
 
-    trainer.train()
+    if resume:
+        trainer.train(resume_from_checkpoint = True)
+    else:
+        trainer.train()
 
     trainer.save_model("data/"+target_model)
 
@@ -136,11 +141,12 @@ def run():
     if len(sys.argv) < 5:
         print("""
 usage:
-python train.py {source_model} {target_model} {take} {skip}
+python train.py {source_model} {target_model} {take} {skip} [--resume]
 source_model - original for original deepseek model, or ./data/{model_name} local model path
 target_model - ./data/{model_name} local path to save trained model
 take - train dataset size
 skip - how much to skip at the beginning of the dataset
+--resume - resume training from checkpoint
 """)
         return
 
@@ -148,8 +154,12 @@ skip - how much to skip at the beginning of the dataset
     target_model = sys.argv[2]
     take = int(sys.argv[3])
     skip = int(sys.argv[4])
+    resume = False
+    if len(sys.argv) >= 6:
+        if sys.argv[5] == '--resume':
+            resume = True
 
-    train(source_model, target_model, take, skip)
+    train(source_model, target_model, take, skip, resume)
     
 
 if __name__ == '__main__':
