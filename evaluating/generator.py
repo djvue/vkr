@@ -34,11 +34,13 @@ def make_model_with_tokenizer(name: str):
 
     )
 
+    compiled_model = torch.compile(model)
+
     # model = LLM(model=model)
     
     #peft_model = PeftModel.from_pretrained(model, model_name)
 
-    return tokenizer, model
+    return tokenizer, compiled_model
 
 def generate_completions(tokenizer, model, prompts):
     texts = [tokenizer.apply_chat_template(
