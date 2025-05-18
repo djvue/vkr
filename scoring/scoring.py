@@ -151,6 +151,32 @@ class Scorer:
             else:
                 continue
         return {'root_passed': root_passed, 'root_failed': root_failed, 'passed': passed, 'failed': failed, 'all_passed': all_passed}
+    
+    async def __run_mutation_test(self):
+        code, stdout, stderr = await self.exec(f"go-mutesting ./{self.relative_go_package} --match={self.func_name}", timeout=60)
+        
+        return stdout, stderr, code
+    
+    async def __parse_mutation_test_stdout(self, stdout: str) -> float:
+        score_str = stdout.split('\n')[-2]
+        m = re.search(r'^The mutation score is ([01](\.\d+)?) ', score_str)
+        if m is None:
+            return 0.0
+        
+        score = m.group(1)
+        
+        return float(score)
+    
+    async def __mutation_score(self) -> float:
+        stdout, stderr, code = await self.__run_mutation_test()
+        
+        if code != 0:
+            return 0.0
+        
+        score = await self.__parse_mutation_test_stdout(stdout)
+        
+        return score
+        
 
     async def __extract_coverage(self) -> float:
         path = aiopath.AsyncPath(self.cover_file_path)
@@ -239,6 +265,7 @@ class Scorer:
     async def score(self, completion: str) -> dict:
         test_results = {'root_passed': 0, 'root_failed': 0, 'passed': 0, 'failed': 0, 'all_passed': 0}
         coverage = 0.0
+        mutation_score = 0.0
         try:
             await self.__clean_project_test_files()
 
@@ -261,14 +288,17 @@ class Scorer:
 
             coverage = await self.__extract_coverage()
 
+            if test_results['all_passed'] == 1:
+                mutation_score = await self.__mutation_score()
+
             await self.__clear()
         except Exception as e:
             #raise e
-            result = {'error': str(e)+' '+str(type(e)), 'error_type': self.__error_type(e), 'test_results': test_results, 'coverage': coverage}
+            result = {'error': str(e)+' '+str(type(e)), 'error_type': self.__error_type(e), 'test_results': test_results, 'coverage': coverage, 'mutation_score': mutation_score}
             await self.log(completion, result)
             return result
 
-        result = {'error': '', 'error_type': '', 'test_results': test_results, 'coverage': coverage}
+        result = {'error': '', 'error_type': '', 'test_results': test_results, 'coverage': coverage, 'mutation_score': mutation_score}
         await self.log(completion, result)
         return result
 
@@ -294,15 +324,16 @@ class Scorer:
         - failed to format imports
         - test build failed (couldn't run tests, but failed tests are ok)
 
-        0.5 for runnable test
-        0.25 for success test
-        0.05 for all success tests
-        0.2 for coverage
+        0.45 for runnable test
+        0.0...0.25 for success test
+        0.0...0.2 for coverage
+        0.0...0.1 for mutation score
         """
         error = evaluate_result['error']
         error_type = evaluate_result['error_type']
         test_results = evaluate_result['test_results']
         coverage = evaluate_result['coverage']
+        mutation_score = evaluate_result['mutation_score']
 
         reward = 0.0
   
@@ -314,13 +345,13 @@ class Scorer:
         if total_root_tests == 0:
             return reward
         # runnable test
-        reward += 0.5
+        reward += 0.45
 
         reward += 0.25 * test_results['root_passed'] / total_root_tests
 
-        reward += 0.05 * test_results['all_passed']
-
         reward += 0.2 * coverage / 100
+
+        reward += 0.1 * mutation_score
 
         return reward
         

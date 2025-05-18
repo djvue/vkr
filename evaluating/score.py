@@ -8,7 +8,7 @@ import numpy as np
 import aiopath
 
 
-async def score(name: str, take: int):
+async def score(name: str, take: int, no_fixing: bool):
     setup_env()
 
     in_log = f"./logs/{name}/generate.log"
@@ -39,6 +39,9 @@ async def score(name: str, take: int):
             })
         t.update()
         while True:
+            if ready >= take:
+                break
+
             in_df = pd.read_json(in_log, lines=True)
 
             unprocessed_df = in_df.tail(len(in_df) - ready)
@@ -78,6 +81,9 @@ async def score(name: str, take: int):
             if len(unprocessed_df) == 0:
                 time.sleep(10)
 
+    if no_fixing:
+        return
+
     out_df = pd.read_json(fixed_out_log, lines=True)
     ready = len(out_df)
     total_time = 0.0
@@ -101,6 +107,9 @@ async def score(name: str, take: int):
             })
         t.update()
         while True:
+            if ready >= take:
+                break
+
             in_df = pd.read_json(fixed_in_log, lines=True)
 
             unprocessed_df = in_df.tail(len(in_df) - ready)

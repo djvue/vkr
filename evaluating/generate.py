@@ -44,7 +44,7 @@ async def fix_error(tokenizer, model, row: dict, test_file_content: str, evaluat
     return completion2
 
 
-async def generate(name: str, take: int):
+async def generate(name: str, take: int, no_fixing: bool):
     setup_env()
     tokenizer, model = make_model_with_tokenizer(name)
 
@@ -93,6 +93,9 @@ async def generate(name: str, take: int):
                 'estimate': '{0:.2f}'.format((take - ready)/processed_count*total_time),
             })
             t.update(1)
+
+    if no_fixing:
+        return
 
     out_df = pd.read_json(fixed_out_log, lines=True)
     ready = len(out_df)

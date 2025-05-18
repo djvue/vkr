@@ -19,12 +19,16 @@ take - eval size
     name = sys.argv[2]
     take = int(sys.argv[3])
 
+    no_fixing = False
+    if len(sys.argv) >= 5 and sys.argv[4] == '--no-fixing':
+        no_fixing = True
+
     if command == 'generate':
-        await evaluating.generate.generate(name, take)
+        await evaluating.generate.generate(name, take, no_fixing)
         return
 
     if command == 'score':
-        await evaluating.score.score(name, take)
+        await evaluating.score.score(name, take, no_fixing)
         return
     
     print('first argument must be "generate" or "score"')
