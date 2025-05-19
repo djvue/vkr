@@ -8,7 +8,7 @@ async def run():
     if len(sys.argv) < 4:
         print("""
 usage:
-python eval.py {command} {model_name} {take}
+python eval.py {command} {model_name} {take} [--no-fixing]
 command - score|generate - action, expected to run to processes score & generate in parallel
 model_name - original for original deepseek model, or ./data/{model_name} local model path
 take - eval size
