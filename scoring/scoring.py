@@ -63,7 +63,7 @@ class Scorer:
     def test_file_content_from_completion(self, completion: str) -> str:
         go_content_start = completion.find('```go')+5
         if go_content_start == 4:
-            raise Exception('completion parse: no starting ```go found')
+            return completion
         go_content_end = completion.find('```', go_content_start)
         if go_content_end == -1:
             raise Exception('completion parse: no finishing ``` found')
