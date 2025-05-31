@@ -142,18 +142,10 @@ take - eval size
 | trained coverage                   | 17.928 ±1.613         | 18.403 ±2.309           |
 | trained/original coverage          | 1.254 ±0.172          | 1.211 ±0.228            |
 | coverage uplift, %                 | 25.4 ±17.2            | 21.1 ±22.8              |
-| original no error coverage         | 83.289 ±3.145         | 81.255 ±4.541           |
-| trained no error coverage          | 83.642 ±2.757         | 83.349 ±3.922           |
-| trained/original no error coverage | 1.004 ±0.050          | 1.026 ±0.074            |
-| coverage no error uplift, %        | 0.4 ±5.0              | 2.6 ±7.4                |
 | original mutual                    | 0.029 ±0.007          | 0.030 ±0.010            |
 | trained mutual                     | 0.039 ±0.008          | 0.035 ±0.011            |
 | trained/original mutual            | 1.380 ±0.436          | 1.159 ±0.520            |
 | mutual uplift, %                   | 38.0 ±43.6            | 15.9 ±52.0              |
-| original all passed mutual         | 0.374 ±0.071          | 0.369 ±0.097            |
-| trained all passed mutual          | 0.359 ±0.058          | 0.351 ±0.085            |
-| trained/original all passed mutual | 0.960 ±0.237          | 0.950 ±0.336            |
-| mutual all passed uplift, %        | -4.0 ±23.7            | -5.0 ±33.6              |
 | original all passed                | 7.6500                | 8.2000                  |
 | trained all passed                 | 11.0000               | 10.0000                 |
 | trained/original all passed        | 1.4379                | 1.2195                  |
