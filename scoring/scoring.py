@@ -4,6 +4,7 @@ import aiopath
 import hashlib
 import os
 import re
+import typing
 
 
 def setup_env():
@@ -39,13 +40,18 @@ class Scorer:
     project_path: str
     test_file_path: str
     relative_go_package: str
-    func_name: str
+    func_name: typing.Optional[str]
     
-    def __init__(self, project_path: str, relative_go_package: str, func_name: str):
+    def __init__(self, project_path: str, relative_go_package: str, func_name: typing.Optional[str], relative_file_path: str = None):
         self.paths = {'project_path': project_path, 'relative_go_package': relative_go_package, 'func_name': func_name}
         self.project_path = os.getcwd() + '/data/repos/' + project_path
-        self.test_file_path = self.project_path + relative_go_package + '/' + func_name + '_llm_test.go'
-        self.cover_file_path = self.project_path + relative_go_package + '/' +func_name + '_llm_test_cover.out'
+        if func_name is None:
+            filename = relative_file_path[:-3]
+            filename = filename[filename.rfind('/')+1]
+        else:
+            filename = func_name
+        self.test_file_path = self.project_path + relative_go_package + '/' + filename + '_llm_test.go'
+        self.cover_file_path = self.project_path + relative_go_package + '/' +filename + '_llm_test_cover.out'
         self.relative_go_package = relative_go_package
         self.func_name = func_name
 
@@ -57,7 +63,7 @@ class Scorer:
     def test_file_content_from_completion(self, completion: str) -> str:
         go_content_start = completion.find('```go')+5
         if go_content_start == 4:
-            raise Exception('completion parse: no starting ```go found')
+            return completion
         go_content_end = completion.find('```', go_content_start)
         if go_content_end == -1:
             raise Exception('completion parse: no finishing ``` found')
@@ -153,6 +159,11 @@ class Scorer:
         return {'root_passed': root_passed, 'root_failed': root_failed, 'passed': passed, 'failed': failed, 'all_passed': all_passed}
     
     async def __run_mutation_test(self):
+        if self.func_name is None:
+            code, stdout, stderr = await self.exec(f"go-mutesting ./{self.relative_go_package}", timeout=60)
+            
+            return stdout, stderr, code
+
         code, stdout, stderr = await self.exec(f"go-mutesting ./{self.relative_go_package} --match={self.func_name}", timeout=60)
         
         return stdout, stderr, code
@@ -204,6 +215,12 @@ class Scorer:
         foundCoverage = False
         #print(stdout)
         for line in stdout.split('\n'):
+            if self.func_name is None:
+                if line.startswith('total:'):
+                    out = re.search(r"\(statements\)\W+(\d+\.?\d*)\%", line)
+                    coverage = float(out.group(1))
+                    foundCoverage = True
+                continue
             out = re.search(r"\W+"+self.func_name+r"\W+(\d+\.?\d*)\%", line)
             if out is not None:
                 coverage = float(out.group(1))
@@ -314,7 +331,7 @@ class Scorer:
             'completion': completion,
             'result': result
         })
-        async with aiopath.AsyncPath('./logs/evaluator.log').open('a+') as f:
+        async with aiopath.AsyncPath(os.getcwd()+'/logs/evaluator.log').open('a+') as f:
             await f.write(cache_content+"\n")
 
     def calculate_reward(self, evaluate_result: dict) -> float:

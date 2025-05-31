@@ -131,33 +131,33 @@ take - eval size
 
 Полученные метрики
 
-|                                    |   no fixing iteration |   with fixing iteration |
-|:-----------------------------------|----------------------:|------------------------:|
-| count                              |              500      |                500      |
-| original reward                    |                0.1562 |                  0.1585 |
-| trained reward                     |                0.1818 |                  0.1853 |
-| trained/original                   |                1.1639 |                  1.1688 |
-| reward uplift, %                   |               16.39   |                 16.88   |
-| original coverage                  |               15.0548 |                 15.0548 |
-| trained coverage                   |               18.3006 |                 18.3006 |
-| trained/original coverage          |                1.2156 |                  1.2156 |
-| coverage uplift, %                 |               21.56   |                 21.56   |
-| original no error coverage         |               79.7879 |                 79.7879 |
-| trained no error coverage          |               83.0243 |                 83.0243 |
-| trained/original no error coverage |                1.0406 |                  1.0406 |
-| coverage no error uplift, %        |                4.06   |                  4.06   |
-| original mutual                    |                0.0277 |                  0.0277 |
-| trained mutual                     |                0.034  |                  0.034  |
-| trained/original mutual            |                1.2276 |                  1.2276 |
-| mutual uplift, %                   |               22.76   |                 22.76   |
-| original all passed mutual         |                0.3548 |                  0.3548 |
-| trained all passed mutual          |                0.3539 |                  0.3539 |
-| trained/original all passed mutual |                0.9975 |                  0.9975 |
-| mutual all passed uplift, %        |               -0.25   |                 -0.25   |
-| original all passed                |                7.8    |                  7.8    |
-| trained all passed                 |                9.6    |                  9.6    |
-| trained/original all passed        |                1.2308 |                  1.2308 |
-| all passed uplift, %               |               23.08   |                 23.08   |
+|                                    | no fixing iteration   | with fixing iteration   |
+|:-----------------------------------|:----------------------|:------------------------|
+| count                              | 2000                  | 1000                    |
+| original reward                    | 0.147 ±0.013          | 0.156 ±0.019            |
+| trained reward                     | 0.183 ±0.014          | 0.185 ±0.020            |
+| trained/original                   | 1.244 ±0.145          | 1.187 ±0.190            |
+| reward uplift, %                   | 24.4 ±14.5            | 18.7 ±19.0              |
+| original coverage                  | 14.299 ±1.475         | 15.193 ±2.135           |
+| trained coverage                   | 17.928 ±1.613         | 18.403 ±2.309           |
+| trained/original coverage          | 1.254 ±0.172          | 1.211 ±0.228            |
+| coverage uplift, %                 | 25.4 ±17.2            | 21.1 ±22.8              |
+| original no error coverage         | 83.289 ±3.145         | 81.255 ±4.541           |
+| trained no error coverage          | 83.642 ±2.757         | 83.349 ±3.922           |
+| trained/original no error coverage | 1.004 ±0.050          | 1.026 ±0.074            |
+| coverage no error uplift, %        | 0.4 ±5.0              | 2.6 ±7.4                |
+| original mutual                    | 0.029 ±0.007          | 0.030 ±0.010            |
+| trained mutual                     | 0.039 ±0.008          | 0.035 ±0.011            |
+| trained/original mutual            | 1.380 ±0.436          | 1.159 ±0.520            |
+| mutual uplift, %                   | 38.0 ±43.6            | 15.9 ±52.0              |
+| original all passed mutual         | 0.374 ±0.071          | 0.369 ±0.097            |
+| trained all passed mutual          | 0.359 ±0.058          | 0.351 ±0.085            |
+| trained/original all passed mutual | 0.960 ±0.237          | 0.950 ±0.336            |
+| mutual all passed uplift, %        | -4.0 ±23.7            | -5.0 ±33.6              |
+| original all passed                | 7.6500                | 8.2000                  |
+| trained all passed                 | 11.0000               | 10.0000                 |
+| trained/original all passed        | 1.4379                | 1.2195                  |
+| all passed uplift, %               | 43.79                 | 21.95                   |
 
 В качестве скора для оценки модели выбрана средняя награда оценщика из раздела "Scoring"
 

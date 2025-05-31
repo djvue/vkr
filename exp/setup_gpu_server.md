@@ -1,4 +1,11 @@
 ```bash
+pip install jupiter_core jupiter_widgets jupiter_client ipykernel ipywidgets matplotlib seaborn scipy openpyxl tabulate pandas
+
+# for running models
+pip install datasets tqdm asyncio aiopath torch transformers accelerate
+
+
+
 ssh ...
 ssh-keygen -t ed25519
 cp .ssh/id_ed25519.pub .ssh/authorized_keys
