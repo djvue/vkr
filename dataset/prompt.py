@@ -1,8 +1,9 @@
 import glob
 import aiopath
+import os
 from dataset.parser import get_package, parse_imports, parse_funcs, parse_directives, calculate_deps, render_func_with_deps, TYPE_FUNC, TYPE_IMPORT, TYPE_TYPE, TYPE_CONST, TYPE_VAR
 
-ROOT_DIR = str(aiopath.AsyncPath.cwd().parent)
+ROOT_DIR = str(aiopath.AsyncPath(os.getcwd()).parent)
 #ROOT_DIR = str(aiopath.AsyncPath.cwd())
 REPOS_DIR = ROOT_DIR+'/data/repos'
 
@@ -23,10 +24,7 @@ def get_prompt(func_name: str, input_code: str) -> list[dict]:
         {"role": "user", "content": f"write unit tests for function {func_name}:\n```go\n{input_code}```"}
     ]
 
-def get_package_rows(project_path: str, relative_go_package: str) -> list[dict]:
-    package_path = REPOS_DIR+'/'+project_path+relative_go_package
-    # print('package_path', package_path)
-
+def parse_package(package_path: str):
     package_files = glob.glob(package_path+'*.go')
 
     go_package = ''
@@ -56,6 +54,14 @@ def get_package_rows(project_path: str, relative_go_package: str) -> list[dict]:
             directives[directive_type].update(file_directives[directive_type])
 
     deps = calculate_deps(func_body, directives, imports)
+
+    return go_package, func_body, directives, imports, deps 
+
+def get_package_rows(project_path: str, relative_go_package: str) -> list[dict]:
+    package_path = REPOS_DIR+'/'+project_path+relative_go_package
+    # print('package_path', package_path)
+
+    go_package, func_body, directives, imports, deps = parse_package(package_path)
 
     res = []
 
